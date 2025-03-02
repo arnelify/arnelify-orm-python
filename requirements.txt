@@ -1,0 +1,5 @@
+cffi
+Nuitka
+setuptools
+wheel
+twine

@@ -1,0 +1,3 @@
+[build-system]
+requires = ["cffi", "setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,25 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# IDE's
+**/.atom/
+**/.idea/
+**/nbproject/
+**/.vscode/
+
+# Docker
+# /*.dockerfile
+# /*.yml
+
+# PIP
+build/*
+dist/*
+venv/*
+
+# Misc
+**/__pycache__
+**/.DS_Store
+**/*.egg-info
+**/desktop.ini
+**/*.log*
+**/*.sql
+**/*.db
