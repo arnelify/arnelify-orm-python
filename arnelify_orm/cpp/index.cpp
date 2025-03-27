@@ -1,9 +1,12 @@
 #include <functional>
+#include <future>
 #include <iostream>
 #include <map>
 #include <vector>
 
 #include <iostream>
+#include <iomanip>
+#include <random>
 #include <sstream>
 #include <string>
 #include <optional>
@@ -161,14 +164,16 @@ class ArnelifyORM {
     } else if (std::holds_alternative<bool>(default_)) {
       const bool value = std::get<bool>(default_);
       query += " " + std::string(value ? "DEFAULT NULL" : "NOT NULL");
+    } else if (std::holds_alternative<double>(default_)) {
+      query += " NOT NULL DEFAULT " + std::to_string(std::get<double>(default_));
     } else if (std::holds_alternative<int>(default_)) {
-      query += std::to_string(std::get<int>(default_));
+      query += " NOT NULL DEFAULT " + std::to_string(std::get<int>(default_));
     } else if (std::holds_alternative<std::string>(default_)) {
       const std::string value = std::get<std::string>(default_);
       if (value == "CURRENT_TIMESTAMP") {
-        query += " DEFAULT CURRENT_TIMESTAMP";
+        query += " NOT NULL DEFAULT CURRENT_TIMESTAMP";
       } else {
-        query += "'" + std::get<std::string>(default_) + "'";
+        query += " NOT NULL DEFAULT '" + value + "'";
       }
     }
 
@@ -276,6 +281,37 @@ class ArnelifyORM {
     this->query.clear();
 
     return res;
+  }
+
+  const std::string getUuId() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(10000, 19999);
+    int random = dis(gen);
+    const auto now = std::chrono::system_clock::now();
+    const auto milliseconds =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch())
+            .count();
+
+    const std::string code =
+        std::to_string(milliseconds) + std::to_string(random);
+    std::hash<std::string> hasher;
+    size_t v1 = hasher(code);
+    size_t v2 = hasher(std::to_string(v1));
+    unsigned char hash[16];
+    for (int i = 0; i < 8; ++i) {
+      hash[i] = (v1 >> (i * 8)) & 0xFF;
+      hash[i + 8] = (v2 >> (i * 8)) & 0xFF;
+    }
+
+    std::stringstream ss;
+    for (int i = 0; i < 16; ++i) {
+      ss << std::hex << std::setw(2) << std::setfill('0')
+         << static_cast<int>(hash[i]);
+    }
+
+    return ss.str();
   }
 
   ArnelifyORM* groupBy(const std::vector<std::string>& args) {
@@ -554,14 +590,15 @@ class ArnelifyORM {
   void reference(const std::string& column, const std::string& tableName,
                  const std::string& foreign,
                  const std::vector<std::string> args) {
-    std::string query = "CONSTRAINT fk_" + tableName + " FOREIGN KEY (" +
-                        column + ") REFERENCES " + tableName + "(" + foreign +
-                        ")";
+    std::string query = "CONSTRAINT fk_" + tableName + "_" + this->getUuId() +
+                        " FOREIGN KEY (" + column + ") REFERENCES " +
+                        tableName + "(" + foreign + ")";
 
     const bool isAlter = this->query.starts_with("ALTER");
     if (isAlter) {
-      query = "ADD CONSTRAINT fk_" + tableName + " FOREIGN KEY (" + column +
-              ") REFERENCES " + tableName + "(" + foreign + ")";
+      query = "ADD CONSTRAINT fk_" + tableName + "_" + this->getUuId() +
+              " FOREIGN KEY (" + column + ") REFERENCES " + tableName + "(" +
+              foreign + ")";
     }
 
     for (size_t i = 0; args.size() > i; i++) {

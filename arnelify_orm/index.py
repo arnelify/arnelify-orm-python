@@ -38,6 +38,7 @@ class ArnelifyORM:
       void orm_destroy();
       const char* orm_exec(cQuery, cBindings);
       void orm_free(cPtr);
+      const char* orm_get_uuid();
     """)
 
     self.opts: str = json.dumps(opts, separators=(',', ':'))
@@ -130,13 +131,13 @@ class ArnelifyORM:
         query += ' NOT NULL'
 
     elif isinstance(default_, (int, float)):
-      query += f"{default_}"
+      query += f" NOT NULL DEFAULT {default_}"
 
     elif isinstance(default_, str):
       if default_ == 'CURRENT_TIMESTAMP':
-        query += ' DEFAULT CURRENT_TIMESTAMP'
+        query += ' NOT NULL DEFAULT CURRENT_TIMESTAMP'
       else:
-        query += f"'{default_}'"
+        query += f" NOT NULL DEFAULT '{default_}'"
 
     if collation:
         query += f" COLLATE {collation}"
@@ -250,6 +251,12 @@ class ArnelifyORM:
 
     return res
 
+  def getUuId(self) -> str:
+    cUuId = self.lib.orm_get_uuid()
+    uuid: str = self.ffi.string(cUuId).decode('utf-8')
+    self.lib.orm_free(cUuId)
+    return uuid
+  
   def groupBy(self, args: list[str] = []) -> 'ArnelifyORM':
     self.query += " GROUP BY "
     for i, arg in enumerate(args):
@@ -452,11 +459,11 @@ class ArnelifyORM:
     return self.exec()
 
   def reference(self, column: str, table_name: str, foreign: str, args: list[str] = []) -> None:
-    query: str = f"CONSTRAINT fk_{table_name} FOREIGN KEY ({column}) REFERENCES {table_name}({foreign})"
+    query: str = f"CONSTRAINT fk_{table_name}_{self.getUuId()} FOREIGN KEY ({column}) REFERENCES {table_name}({foreign})"
 
     isAlter: bool = self.query.startswith('ALTER')
     if isAlter:
-        query = f"ADD CONSTRAINT fk_{table_name} FOREIGN KEY ({column}) REFERENCES {table_name}({foreign})"
+        query = f"ADD CONSTRAINT fk_{table_name}_{self.getUuId()} FOREIGN KEY ({column}) REFERENCES {table_name}({foreign})"
 
     for arg in args:
         query += f" {arg}"

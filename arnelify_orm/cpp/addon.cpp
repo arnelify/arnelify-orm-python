@@ -140,10 +140,16 @@ Napi::Value orm_exec(const Napi::CallbackInfo& info) {
   return Napi::String::New(env, out);
 }
 
+Napi::Value orm_get_uuid(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  return Napi::String::New(env, orm->getUuId());
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("orm_create", Napi::Function::New(env, orm_create));
   exports.Set("orm_destroy", Napi::Function::New(env, orm_destroy));
   exports.Set("orm_exec", Napi::Function::New(env, orm_exec));
+  exports.Set("orm_get_uuid", Napi::Function::New(env, orm_get_uuid));
   return exports;
 }
 

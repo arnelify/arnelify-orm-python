@@ -107,6 +107,13 @@ const char* orm_exec(const char* cQuery, const char* cSerialized) {
 void orm_free(const char* cPtr) {
   if (cPtr) delete[] cPtr;
 }
+
+const char* orm_get_uuid() {
+  const std::string uuid = orm->getUuId();
+  char* cUuId = new char[uuid.length() + 1];
+  std::strcpy(cUuId, uuid.c_str());
+  return cUuId;
+}
 }
 
 #endif
