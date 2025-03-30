@@ -58,7 +58,7 @@ class ArnelifyORM {
   }
 
   const void condition(
-      const std::string& column,
+      const bool bind, const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3) {
     if (this->isOperator(arg2)) {
@@ -70,22 +70,35 @@ class ArnelifyORM {
 
       if (std::holds_alternative<int>(arg3)) {
         const std::string value = std::to_string(std::get<int>(arg3));
+        if (bind) {
+          this->query += column + " " + operator_ + " ?";
+          this->bindings.emplace_back(value);
+          return;
+        }
+
         this->query += column + " " + operator_ + " " + value;
-        this->bindings.emplace_back(value);
         return;
       }
 
       if (std::holds_alternative<double>(arg3)) {
         const std::string value = std::to_string(std::get<double>(arg3));
+        if (bind) {
+          this->query += column + " " + operator_ + " ?";
+          this->bindings.emplace_back(value);
+          return;
+        }
+
         this->query += column + " " + operator_ + " " + value;
+      }
+
+      const std::string value = std::get<std::string>(arg3);
+      if (bind) {
+        this->query += column + " " + operator_ + " ?";
         this->bindings.emplace_back(value);
         return;
       }
 
-      const std::string value = std::get<std::string>(arg3);
-      this->query += column + " " + operator_ + " ?";
-      this->bindings.emplace_back(value);
-      return;
+      this->query += column + " " + operator_ + " " + value;
     }
 
     if (std::holds_alternative<std::nullptr_t>(arg2)) {
@@ -95,21 +108,33 @@ class ArnelifyORM {
 
     if (std::holds_alternative<int>(arg2)) {
       const std::string value = std::to_string(std::get<int>(arg2));
-      this->query += column + " = ?";
-      this->bindings.emplace_back(value);
-      return;
+      if (bind) {
+        this->query += column + " = ?";
+        this->bindings.emplace_back(value);
+        return;
+      }
+
+      this->query += column + " = " + value;
     }
 
     if (std::holds_alternative<double>(arg2)) {
       const std::string value = std::to_string(std::get<double>(arg2));
-      this->query += column + " = ?";
-      this->bindings.emplace_back(value);
-      return;
+      if (bind) {
+        this->query += column + " = ?";
+        this->bindings.emplace_back(value);
+        return;
+      }
+
+      this->query += column + " = " + value;
     }
 
     const std::string value = std::get<std::string>(arg2);
-    this->query += column + " = ?";
-    this->bindings.emplace_back(value);
+    if (bind) {
+      this->query += column + " = ?";
+      this->bindings.emplace_back(value);
+    }
+
+    this->query += column + " = " + value;
   }
 
  public:
@@ -165,7 +190,8 @@ class ArnelifyORM {
       const bool value = std::get<bool>(default_);
       query += " " + std::string(value ? "DEFAULT NULL" : "NOT NULL");
     } else if (std::holds_alternative<double>(default_)) {
-      query += " NOT NULL DEFAULT " + std::to_string(std::get<double>(default_));
+      query +=
+          " NOT NULL DEFAULT " + std::to_string(std::get<double>(default_));
     } else if (std::holds_alternative<int>(default_)) {
       query += " NOT NULL DEFAULT " + std::to_string(std::get<int>(default_));
     } else if (std::holds_alternative<std::string>(default_)) {
@@ -244,18 +270,18 @@ class ArnelifyORM {
 
   void dropTable(const std::string& tableName,
                  const std::vector<std::string> args = {}) {
-    this->raw("SET foreign_key_checks = 0;");
+    this->exec("SET foreign_key_checks = 0;");
     this->query = "DROP TABLE IF EXISTS " + tableName;
     for (size_t i = 0; args.size() > i; i++) {
       this->query += " " + args[i];
     }
 
     this->exec();
-    this->raw("SET foreign_key_checks = 1;");
+    this->exec("SET foreign_key_checks = 1;");
   }
 
   const ArnelifyORMRes exec(const std::string& query,
-                            const std::vector<std::string>& bindings) {
+                            const std::vector<std::string>& bindings = {}) {
     MySQLDriverRes res;
     if (this->mysql) {
       res = this->mysql->exec(query, bindings);
@@ -352,7 +378,7 @@ class ArnelifyORM {
       this->hasHaving = true;
     }
 
-    this->condition(column, arg2, arg3);
+    this->condition(true, column, arg2, arg3);
     return this;
   }
 
@@ -366,10 +392,11 @@ class ArnelifyORM {
 
     bool first = true;
     for (const auto& [key, value] : args) {
-      if (!first) {
+      if (first) {
+        first = false;
+      } else {
         columns << ", ";
         values << ", ";
-        first = false;
       }
 
       columns << key;
@@ -472,7 +499,7 @@ class ArnelifyORM {
       this->hasOn = true;
     }
 
-    this->condition(column, arg2, arg3);
+    this->condition(false, column, arg2, arg3);
     return this;
   }
 
@@ -514,7 +541,7 @@ class ArnelifyORM {
       this->hasHaving = true;
     }
 
-    this->condition(column, arg2, arg3);
+    this->condition(true, column, arg2, arg3);
     return this;
   }
 
@@ -546,7 +573,7 @@ class ArnelifyORM {
       this->hasOn = true;
     }
 
-    this->condition(column, arg2, arg3);
+    this->condition(false, column, arg2, arg3);
     return this;
   }
 
@@ -578,13 +605,8 @@ class ArnelifyORM {
       this->hasWhere = true;
     }
 
-    this->condition(column, arg2, arg3);
+    this->condition(true, column, arg2, arg3);
     return this;
-  }
-
-  ArnelifyORMRes raw(const std::string& query) {
-    this->query = query;
-    return this->exec();
   }
 
   void reference(const std::string& column, const std::string& tableName,
@@ -665,12 +687,13 @@ class ArnelifyORM {
     bool first = true;
     for (const auto& [key, value] : args) {
       if (!first) {
-        this->query += ", ";
         first = false;
+      } else {
+        this->query += ", ";
       }
 
       if (std::holds_alternative<std::nullptr_t>(value)) {
-        this->query += key + " IS NULL";
+        this->query += key + " = NULL";
         continue;
       }
 
@@ -727,7 +750,7 @@ class ArnelifyORM {
       this->hasWhere = true;
     }
 
-    this->condition(column, arg2, arg3);
+    this->condition(true, column, arg2, arg3);
     return this;
   }
 };

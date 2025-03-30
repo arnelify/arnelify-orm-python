@@ -54,7 +54,7 @@ class ArnelifyORM:
     self.lib.orm_create(cOpts)
     self.query: str = ""
 
-  def condition(self, column: str, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> None:
+  def condition(self, bind: bool, column: str, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> None:
     if self.isOperator(arg2):
       operator_ = str(arg2)
       if arg3 is None:
@@ -62,12 +62,20 @@ class ArnelifyORM:
         return
 
       if isinstance(arg3, (int, float)):
+        if bind:
+          self.query += f"{column} {operator_} ?"
+          self.bindings.append(str(arg3))
+          return
+        
         self.query += f"{column} {operator_} {arg3}"
-        self.bindings.append(str(arg3))
         return
 
-      self.query += f"{column} {operator_} ?"
-      self.bindings.append(arg3)
+      if bind:
+        self.query += f"{column} {operator_} ?"
+        self.bindings.append(arg3)
+        return
+      
+      self.query += f"{column} {operator_} {arg3}"
       return
 
     if arg2 is None:
@@ -75,12 +83,20 @@ class ArnelifyORM:
       return
 
     if isinstance(arg2, (int, float)):
-      self.query += f"{column} = ?"
-      self.bindings.append(str(arg2))
+      if bind:
+        self.query += f"{column} = ?"
+        self.bindings.append(str(arg2))
+        return
+      
+      self.query += f"{column} = {arg2}"
       return
 
-    self.query += f"{column} = ?"
-    self.bindings.append(arg2)
+    if bind:
+      self.query += f"{column} = ?"
+      self.bindings.append(arg2)
+      return
+    
+    self.query += f"{column} = {arg2}"
 
   def isOperator(self, operator_: str | int | None) -> bool:
     if not isinstance(operator_, str):
@@ -201,13 +217,13 @@ class ArnelifyORM:
     self.query += f"DROP INDEX {name}"
 
   def dropTable(self, tableName: str, args: list[str] = []) -> None:
-    self.raw('SET foreign_key_checks = 0;')
+    self.exec('SET foreign_key_checks = 0;')
     self.query = f"DROP TABLE IF EXISTS {tableName}"
     for arg in args:
         self.query += f" {arg}"
 
     self.exec()
-    self.raw('SET foreign_key_checks = 1;')
+    self.exec('SET foreign_key_checks = 1;')
 
   def exec(self, query: str | None = None, bindings: list[str] = []) -> list[dict]:
     res: list[dict] = {}
@@ -287,7 +303,7 @@ class ArnelifyORM:
       self.query += ' HAVING '
       self.hasHaving = True
 
-    self.condition(arg1, arg2, arg3)
+    self.condition(True, arg1, arg2, arg3)
     return self
 
   def insert(self, args: dict[str, any]) -> dict[str, str]:
@@ -297,10 +313,11 @@ class ArnelifyORM:
 
     first: bool = True
     for key, value in args.items():
-      if not first:
+      if first:
+        first = False
+      else:
         columns += ', '
         values += ', '
-        first = False
 
       columns += key
       if value is None:
@@ -371,7 +388,7 @@ class ArnelifyORM:
         self.query += ' ON '
         self.hasOn = True
 
-    self.condition(arg1, arg2, arg3)
+    self.condition(False, arg1, arg2, arg3)
     return self
 
   def offset(self, offset: int) -> 'ArnelifyORM':
@@ -403,7 +420,7 @@ class ArnelifyORM:
       self.query += ' HAVING '
       self.hasHaving = True
 
-    self.condition(arg1, arg2, arg3)
+    self.condition(True, arg1, arg2, arg3)
     return self
 
   def orOn(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
@@ -427,7 +444,7 @@ class ArnelifyORM:
       self.query += ' ON '
       self.hasOn = True
 
-    self.condition(arg1, arg2, arg3)
+    self.condition(False, arg1, arg2, arg3)
     return self
 
   def orWhere(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
@@ -451,12 +468,8 @@ class ArnelifyORM:
       self.query += ' WHERE '
       self.hasWhere = True
 
-    self.condition(arg1, arg2, arg3)
+    self.condition(True, arg1, arg2, arg3)
     return self
-
-  def raw(self, query: str) -> dict[str, str]:
-    self.query = query
-    return self.exec()
 
   def reference(self, column: str, table_name: str, foreign: str, args: list[str] = []) -> None:
     query: str = f"CONSTRAINT fk_{table_name}_{self.getUuId()} FOREIGN KEY ({column}) REFERENCES {table_name}({foreign})"
@@ -500,12 +513,13 @@ class ArnelifyORM:
     
     first: bool = True
     for key, value in args.items():
-      if not first:
-        self.query += ', '
+      if first:
         first = False
+      else:
+        self.query += ', '
 
       if value is None:
-        self.query += f"{key} IS NULL"
+        self.query += f"{key} = NULL"
       elif isinstance(value, (int, float)):
         self.bindings.append(str(value))
         self.query += f"{key} = ?"
@@ -536,5 +550,5 @@ class ArnelifyORM:
       self.query += ' WHERE '
       self.hasWhere = True
 
-    self.condition(arg1, arg2, arg3)
+    self.condition(True, arg1, arg2, arg3)
     return self

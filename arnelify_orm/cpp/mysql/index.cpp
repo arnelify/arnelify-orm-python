@@ -125,8 +125,8 @@ class MySQLDriver {
       std::vector<unsigned long> result_lengths(numFields);
       std::vector<char*> result_buffer(numFields);
       for (i = 0; i < numFields; i++) {
-        result_buffer[i] = new char[result_lengths[i] + 1];
         result_lengths[i] = fields[i].length;
+        result_buffer[i] = new char[result_lengths[i] + 1];
         result_bind[i].buffer = result_buffer[i];
         result_bind[i].buffer_length = result_lengths[i] + 1;
         result_bind[i].length = &result_lengths[i];
