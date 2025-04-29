@@ -175,13 +175,11 @@ class MySQLQuery:
     self.query += f"DROP INDEX {name}"
 
   def dropTable(self, tableName: str, args: list[str] = []) -> None:
-    self.exec('SET foreign_key_checks = 0;')
     self.query = f"DROP TABLE IF EXISTS {tableName}"
     for arg in args:
         self.query += f" {arg}"
 
     self.exec()
-    self.exec('SET foreign_key_checks = 1;')
 
   def exec(self, query: str | None = None, bindings: list[str] = []) -> list[dict]:
     res: list[dict] = []
@@ -202,6 +200,13 @@ class MySQLQuery:
     self.query = ''
 
     return res
+
+  def foreignKeyChecks(self, on: bool = True) -> None:
+    if on:
+      self.exec('SET foreign_key_checks = 1;')
+      return
+    
+    self.exec('SET foreign_key_checks = 0;')
 
   def getUuId(self) -> str:
     return self.getUuIdCallback()

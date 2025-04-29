@@ -6,7 +6,7 @@ ENGINE = g++
 ENGINE_FLAGS = -std=c++2b
 
 # PATH
-PATH_BIN = $(CURDIR)/tests/bin/index
+PATH_BIN = $(CURDIR)/tests/build/index.bin
 PATH_SRC = $(CURDIR)/tests/index.py
 
 # INC
@@ -42,12 +42,12 @@ build:
 	${PYTHON} ${PYTHON_FLAGS} index
 
 test:
-	clear && mkdir -p tests/bin && rm -rf tests/bin/*
+	clear && mkdir -p tests/build && rm -rf tests/build/*
 	${PYTHON} ${PYTHON_FLAGS} tests.index
 
 test_nuitka:
-	clear && mkdir -p tests/bin && rm -rf tests/bin/*
-	${NUITKA} ${NUITKA_FLAGS} --output-dir=tests/bin ${PATH_SRC} && clear
+	clear && mkdir -p tests/build && rm -rf tests/build/*
+	${NUITKA} ${NUITKA_FLAGS} --output-dir=tests/build ${PATH_SRC} && clear
 	${PATH_BIN}
 
 .PHONY: build test

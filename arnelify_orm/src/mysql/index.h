@@ -127,6 +127,17 @@ class MySQL {
     return res;
   }
 
+  const void foreignKeyChecks(const bool& on = true) {
+    MySQLQuery* builder = new MySQLQuery();
+    builder->onQuery([this, builder](const std::string& query,
+                                     const std::vector<std::string>& bindings) {
+      this->trash.push_back(builder);
+      return this->exec(query, bindings);
+    });
+
+    builder->foreignKeyChecks(on);
+  }
+
   const std::string getUuId() {
     MySQLQuery builder;
     return builder.getUuId();

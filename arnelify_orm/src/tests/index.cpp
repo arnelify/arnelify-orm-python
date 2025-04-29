@@ -20,8 +20,10 @@ int main(int argc, char* argv[]) {
   db->connect();
   std::cout << "Connected." << std::endl;
 
+  db->foreignKeyChecks(false);
   db->dropTable("users");
   db->dropTable("posts");
+  db->foreignKeyChecks(true);
 
   db->createTable("users", [](MySQLQuery* query){
     query->column("id", "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY");

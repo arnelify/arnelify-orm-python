@@ -135,12 +135,6 @@ class MySQLQuery {
  public:
   MySQLQuery() : hasHaving(false), hasOn(false), hasWhere(false) {}
 
-  void onQuery(std::function<MySQLRes(const std::string&,
-                                      const std::vector<std::string>&)>
-                   callback) {
-    this->callback = callback;
-  }
-
   void alterTable(
       const std::string& tableName,
       const std::function<void(MySQLQuery*)>& condition =
@@ -256,14 +250,12 @@ class MySQLQuery {
 
   void dropTable(const std::string& tableName,
                  const std::vector<std::string> args = {}) {
-    this->exec("SET foreign_key_checks = 0;");
     this->query = "DROP TABLE IF EXISTS " + tableName;
     for (size_t i = 0; args.size() > i; i++) {
       this->query += " " + args[i];
     }
 
     this->exec();
-    this->exec("SET foreign_key_checks = 1;");
   }
 
   MySQLRes exec() {
@@ -297,6 +289,15 @@ class MySQLQuery {
     this->query.clear();
 
     return res;
+  }
+
+  void foreignKeyChecks(const bool& on = true) {
+    if (on) {
+      this->exec("SET foreign_key_checks = 1;");
+      return;
+    }
+
+    this->exec("SET foreign_key_checks = 0;");
   }
 
   const std::string getUuId() {
@@ -460,6 +461,11 @@ class MySQLQuery {
     return this;
   }
 
+  MySQLQuery* offset(const int& offset) {
+    this->query += " OFFSET " + std::to_string(offset);
+    return this;
+  }
+
   MySQLQuery* on(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasOn) {
       const bool hasCondition = this->query.ends_with(")");
@@ -492,9 +498,10 @@ class MySQLQuery {
     return this;
   }
 
-  MySQLQuery* offset(const int& offset) {
-    this->query += " OFFSET " + std::to_string(offset);
-    return this;
+  void onQuery(std::function<MySQLRes(const std::string&,
+                                      const std::vector<std::string>&)>
+                   callback) {
+    this->callback = callback;
   }
 
   MySQLQuery* orderBy(const std::string& column, const std::string& arg2) {

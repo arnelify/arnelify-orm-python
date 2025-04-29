@@ -49,6 +49,16 @@ class MySQL:
     cOpts = self.ffi.new("char[]", self.opts.encode('utf-8'))
     self.lib.orm_mysql_create(cOpts)
 
+  def foreignKeyChecks(self, on: bool = True) -> None:
+    builder: MySQLQuery = MySQLQuery()
+    builder.setGetUuIdCallback(self.getUuId)
+    
+    def onQuery(query, bindings):
+      return self.exec(query, bindings)
+    
+    builder.onQuery(onQuery)
+    builder.foreignKeyChecks(on)
+
   def alterTable(self, tableName: str, condition: callable) -> None:
     builder: MySQLQuery = MySQLQuery()
     builder.setGetUuIdCallback(self.getUuId)

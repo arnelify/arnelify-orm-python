@@ -16,8 +16,10 @@ def main() -> int:
   db.connect()
   print("Connected.")
 
+  db.foreignKeyChecks(False)
   db.dropTable("users")
   db.dropTable("posts")
+  db.foreignKeyChecks(True)
 
   def users(query: MySQLQuery):
     query.column("id", "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY")
