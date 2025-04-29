@@ -1,22 +1,21 @@
-#ifndef MARIADB_DRIVER_CPP
-#define MARIADB_DRIVER_CPP
+#ifndef ARNELIFY_ORM_MYSQL_DRIVER_H
+#define ARNELIFY_ORM_MYSQL_DRIVER_H
 
 #include <iostream>
 #include <map>
 
 #include "mysql/mysql.h"
 
-#include "contracts/logger.hpp"
-#include "contracts/res.hpp"
+#include "contracts/logger.h"
+#include "contracts/res.h"
 
 using my_bool = my_bool;
 
-class MariaDBDriver {
+class MySQLDriver {
  private:
   MYSQL* mysql;
 
-  MariaDBDriverLogger logger = [](const std::string& message,
-                                const bool& isError) {
+  MySQLLogger logger = [](const std::string& message, const bool& isError) {
     if (isError) {
       std::cout << "[Arnelify ORM]: Error: " << message << std::endl;
       return;
@@ -26,7 +25,7 @@ class MariaDBDriver {
   };
 
  public:
-  MariaDBDriver(const std::string& host, const std::string& name,
+  MySQLDriver(const std::string& host, const std::string& name,
               const std::string& user, const std::string& pass,
               const int& port) {
     this->mysql = mysql_init(NULL);
@@ -43,12 +42,14 @@ class MariaDBDriver {
     }
   }
 
-  ~MariaDBDriver() {
-    if (this->mysql) mysql_close(this->mysql);
+  ~MySQLDriver() {
+    if (this->mysql) {
+      mysql_close(this->mysql);
+    }
   }
 
-  const MariaDBDriverRes exec(
-      const std::string& query, const std::vector<std::string>& bindings) {
+  const MySQLRes exec(const std::string& query,
+                      const std::vector<std::string>& bindings) {
     MYSQL_STMT* stmt = mysql_stmt_init(mysql);
     if (!stmt) {
       this->logger("Failed to initialize prepared statement.", true);
@@ -98,13 +99,17 @@ class MariaDBDriver {
       exit(1);
     }
 
-    MariaDBDriverRes res;
+    MySQLRes res;
     for (int i = 0; i < bindingsLen; i++) {
       delete query_bind[i].is_null;
     }
 
     const bool isInsert = query.starts_with("INSERT");
-    if (isInsert) res["id"] = std::to_string(mysql_insert_id(this->mysql));
+    if (isInsert) {
+      MySQLRow row;
+      row["id"] = std::to_string(mysql_insert_id(this->mysql));
+      res.emplace_back(row);
+    }
 
     const bool isSelect = query.starts_with("SELECT");
     if (isSelect) {
@@ -117,17 +122,12 @@ class MariaDBDriver {
 
       const int numFields = mysql_num_fields(result);
       const MYSQL_FIELD* fields = mysql_fetch_fields(result);
-      for (i = 0; i < numFields; i++) {
-        const std::string key = fields[i].name;
-        res[key] = nullptr;
-      }
-
       std::vector<MYSQL_BIND> result_bind(numFields);
       std::vector<unsigned long> result_lengths(numFields);
       std::vector<char*> result_buffer(numFields);
       for (i = 0; i < numFields; i++) {
-        result_buffer[i] = new char[result_lengths[i] + 1];
         result_lengths[i] = fields[i].length;
+        result_buffer[i] = new char[result_lengths[i] + 1];
         result_bind[i].buffer = result_buffer[i];
         result_bind[i].buffer_length = result_lengths[i] + 1;
         result_bind[i].length = &result_lengths[i];
@@ -142,15 +142,22 @@ class MariaDBDriver {
       }
 
       while (mysql_stmt_fetch(stmt) == 0) {
+        MySQLRow row;
+
         for (int i = 0; i < numFields; i++) {
           const bool isNull = *(result_bind[i].is_null);
           const std::string key = fields[i].name;
-          if (!isNull) {
-            const unsigned long index = result_lengths[i];
-            result_buffer[i][index] = '\0';
-            res[key] = result_buffer[i];
+          if (isNull) {
+            row[key] = nullptr;
+            continue;
           }
+
+          const unsigned long index = result_lengths[i];
+          result_buffer[i][index] = '\0';
+          row[key] = result_buffer[i];
         }
+
+        res.emplace_back(row);
       }
 
       for (int i = 0; i < numFields; i++) {

@@ -1,31 +1,28 @@
+#ifndef ARNELIFY_ORM_MYSQL_QUERY_H
+#define ARNELIFY_ORM_MYSQL_QUERY_H
+
 #include <functional>
 #include <future>
 #include <iostream>
 #include <map>
 #include <vector>
 
-#include <iostream>
 #include <iomanip>
 #include <random>
 #include <sstream>
 #include <string>
 #include <optional>
 #include <map>
+#include <queue>
 #include <variant>
 #include <vector>
 
 #include "json.h"
 
-#include "mysql/index.cpp"
+#include "contracts/res.h"
 
-#include "contracts/opts.hpp"
-#include "contracts/res.hpp"
-
-class ArnelifyORM {
+class MySQLQuery {
  private:
-  ArnelifyORMOpts opts;
-  MySQLDriver* mysql = nullptr;
-
   bool hasHaving;
   bool hasOn;
   bool hasWhere;
@@ -36,14 +33,12 @@ class ArnelifyORM {
   std::vector<std::string> indexes;
   std::string query;
 
-  std::function<void(const std::string&, const bool&)> logger =
-      [](const std::string& message, const bool& isError) {
-        if (isError) {
-          std::cout << "[Arnelify ORM]: Error" << message << std::endl;
-          return;
-        }
-
-        std::cout << "[Arnelify ORM]: " << message << std::endl;
+  std::function<MySQLRes(const std::string&, const std::vector<std::string>&)>
+      callback = [](const std::string& query,
+                    const std::vector<std::string>& bindings) {
+        MySQLRes res = {};
+        std::cout << query << std::endl;
+        return res;
       };
 
   const bool isOperator(
@@ -138,27 +133,18 @@ class ArnelifyORM {
   }
 
  public:
-  ArnelifyORM(const ArnelifyORMOpts& o)
-      : opts(o), hasHaving(false), hasOn(false), hasWhere(false) {
-    if (this->opts.ORM_DRIVER == "mysql") {
-      this->mysql = new MySQLDriver(this->opts.ORM_HOST, this->opts.ORM_NAME,
-                                    this->opts.ORM_USER, this->opts.ORM_PASS,
-                                    this->opts.ORM_PORT);
-    }
-  }
+  MySQLQuery() : hasHaving(false), hasOn(false), hasWhere(false) {}
 
-  ~ArnelifyORM() {
-    const bool isMySQL = this->opts.ORM_DRIVER == "mysql" && this->mysql;
-    if (isMySQL) {
-      delete this->mysql;
-      this->mysql = nullptr;
-    }
+  void onQuery(std::function<MySQLRes(const std::string&,
+                                      const std::vector<std::string>&)>
+                   callback) {
+    this->callback = callback;
   }
 
   void alterTable(
       const std::string& tableName,
-      const std::function<void(ArnelifyORM*)>& condition =
-          [](ArnelifyORM* query) {}) {
+      const std::function<void(MySQLQuery*)>& condition =
+          [](MySQLQuery* query) {}) {
     this->query = "ALTER TABLE " + tableName + " ";
     condition(this);
 
@@ -210,8 +196,8 @@ class ArnelifyORM {
 
   void createTable(
       const std::string& tableName,
-      const std::function<void(ArnelifyORM*)>& condition =
-          [](ArnelifyORM* query) {}) {
+      const std::function<void(MySQLQuery*)>& condition =
+          [](MySQLQuery* query) {}) {
     this->query = "CREATE TABLE " + tableName + " (";
     condition(this);
     for (size_t i = 0; this->columns.size() > i; i++) {
@@ -229,12 +215,12 @@ class ArnelifyORM {
     this->exec();
   }
 
-  ArnelifyORM* delete_() {
+  MySQLQuery* delete_() {
     this->query = "DELETE FROM " + this->tableName;
     return this;
   }
 
-  ArnelifyORM* distinct(const std::vector<std::string>& args = {}) {
+  MySQLQuery* distinct(const std::vector<std::string>& args = {}) {
     if (!args.size()) {
       this->query = "SELECT DISTINCT * FROM " + this->tableName;
       return this;
@@ -280,21 +266,25 @@ class ArnelifyORM {
     this->exec("SET foreign_key_checks = 1;");
   }
 
-  const ArnelifyORMRes exec(const std::string& query,
-                            const std::vector<std::string>& bindings = {}) {
-    MySQLDriverRes res;
-    if (this->mysql) {
-      res = this->mysql->exec(query, bindings);
-    }
+  MySQLRes exec() {
+    MySQLRes res = this->callback(this->query, this->bindings);
+
+    this->hasHaving = false;
+    this->hasOn = false;
+    this->hasWhere = false;
+
+    this->bindings.clear();
+    this->tableName.clear();
+    this->columns.clear();
+    this->indexes.clear();
+    this->query.clear();
 
     return res;
   }
 
-  const ArnelifyORMRes exec() {
-    MySQLDriverRes res;
-    if (this->mysql) {
-      res = this->mysql->exec(this->query, this->bindings);
-    }
+  MySQLRes exec(const std::string& query,
+                const std::vector<std::string>& bindings = {}) {
+    MySQLRes res = this->callback(query, bindings);
 
     this->hasHaving = false;
     this->hasOn = false;
@@ -340,7 +330,7 @@ class ArnelifyORM {
     return ss.str();
   }
 
-  ArnelifyORM* groupBy(const std::vector<std::string>& args) {
+  MySQLQuery* groupBy(const std::vector<std::string>& args) {
     this->query += " GROUP BY ";
     for (size_t i = 0; args.size() > i; i++) {
       if (i > 0) this->query += ", ";
@@ -350,7 +340,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* having(const std::function<void(ArnelifyORM*)>& condition) {
+  MySQLQuery* having(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasHaving) {
       const bool hasCondition = this->query.ends_with(")");
       if (hasCondition) this->query += " AND ";
@@ -365,7 +355,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* having(
+  MySQLQuery* having(
       const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
@@ -382,10 +372,9 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORMRes insert(
-      const std::map<
-          std::string,
-          const std::variant<std::nullptr_t, int, double, std::string>>& args) {
+  MySQLRes insert(const std::map<std::string,
+                                 const std::variant<std::nullptr_t, int, double,
+                                                    std::string>>& args) {
     this->query = "INSERT INTO " + this->tableName;
     std::stringstream columns;
     std::stringstream values;
@@ -450,12 +439,12 @@ class ArnelifyORM {
     this->indexes.emplace_back(query);
   }
 
-  ArnelifyORM* join(const std::string& tableName) {
+  MySQLQuery* join(const std::string& tableName) {
     this->query += " JOIN " + tableName;
     return this;
   }
 
-  ArnelifyORMRes limit(const int& limit_, const int& offset = 0) {
+  MySQLRes limit(const int& limit_, const int& offset = 0) {
     if (offset > 0) {
       this->query +=
           " LIMIT " + std::to_string(offset) + ", " + std::to_string(limit_);
@@ -466,12 +455,12 @@ class ArnelifyORM {
     return this->exec();
   }
 
-  ArnelifyORM* leftJoin(const std::string& tableName) {
+  MySQLQuery* leftJoin(const std::string& tableName) {
     this->query += " LEFT JOIN " + tableName;
     return this;
   }
 
-  ArnelifyORM* on(const std::function<void(ArnelifyORM*)>& condition) {
+  MySQLQuery* on(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasOn) {
       const bool hasCondition = this->query.ends_with(")");
       if (hasCondition) this->query += " AND ";
@@ -486,7 +475,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* on(
+  MySQLQuery* on(
       const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
@@ -503,17 +492,17 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* offset(const int& offset) {
+  MySQLQuery* offset(const int& offset) {
     this->query += " OFFSET " + std::to_string(offset);
     return this;
   }
 
-  ArnelifyORM* orderBy(const std::string& column, const std::string& arg2) {
+  MySQLQuery* orderBy(const std::string& column, const std::string& arg2) {
     this->query += " ORDER BY " + column + " " + arg2;
     return this;
   }
 
-  ArnelifyORM* orHaving(const std::function<void(ArnelifyORM*)>& condition) {
+  MySQLQuery* orHaving(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasHaving) {
       const bool hasCondition = this->query.ends_with(")");
       if (hasCondition) this->query += " OR ";
@@ -528,7 +517,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* orHaving(
+  MySQLQuery* orHaving(
       const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
@@ -545,7 +534,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* orOn(const std::function<void(ArnelifyORM*)>& condition) {
+  MySQLQuery* orOn(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasOn) {
       const bool hasCondition = this->query.ends_with(")");
       if (hasCondition) this->query += " OR ";
@@ -560,7 +549,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* orOn(
+  MySQLQuery* orOn(
       const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
@@ -577,7 +566,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* orWhere(const std::function<void(ArnelifyORM*)>& condition) {
+  MySQLQuery* orWhere(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasWhere) {
       const bool hasCondition = this->query.ends_with(")");
       if (hasCondition) this->query += " OR ";
@@ -592,7 +581,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* orWhere(
+  MySQLQuery* orWhere(
       const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
@@ -630,12 +619,12 @@ class ArnelifyORM {
     this->indexes.emplace_back(query);
   }
 
-  ArnelifyORM* rightJoin(const std::string& tableName) {
+  MySQLQuery* rightJoin(const std::string& tableName) {
     this->query += " RIGHT JOIN " + tableName;
     return this;
   }
 
-  ArnelifyORM* select(const std::vector<std::string>& args = {}) {
+  MySQLQuery* select(const std::vector<std::string>& args = {}) {
     if (!args.size()) {
       this->query = "SELECT * FROM " + this->tableName;
       return this;
@@ -651,32 +640,12 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* table(const std::string& tableName) {
+  MySQLQuery* table(const std::string& tableName) {
     this->tableName = tableName;
     return this;
   }
 
-  const Json::Value toJson(const ArnelifyORMRes& res) {
-    Json::Value json = Json::arrayValue;
-    for (const ArnelifyORMRow& row : res) {
-      Json::Value item;
-
-      for (auto& [key, value] : row) {
-        if (std::holds_alternative<std::nullptr_t>(value)) {
-          item[key] = Json::nullValue;
-          continue;
-        }
-
-        item[key] = std::get<std::string>(value);
-      }
-
-      json.append(item);
-    }
-
-    return json;
-  }
-
-  ArnelifyORM* update(
+  MySQLQuery* update(
       const std::map<
           std::string,
           const std::variant<std::nullptr_t, int, double, std::string>>& args) {
@@ -686,7 +655,7 @@ class ArnelifyORM {
 
     bool first = true;
     for (const auto& [key, value] : args) {
-      if (!first) {
+      if (first) {
         first = false;
       } else {
         this->query += ", ";
@@ -722,7 +691,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* where(const std::function<void(ArnelifyORM*)>& condition) {
+  MySQLQuery* where(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasWhere) {
       const bool hasCondition = this->query.ends_with(")");
       if (hasCondition) this->query += " AND ";
@@ -737,7 +706,7 @@ class ArnelifyORM {
     return this;
   }
 
-  ArnelifyORM* where(
+  MySQLQuery* where(
       const std::string& column,
       const std::variant<std::nullptr_t, int, double, std::string>& arg2,
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
@@ -754,3 +723,5 @@ class ArnelifyORM {
     return this;
   }
 };
+
+#endif

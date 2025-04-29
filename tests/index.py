@@ -1,10 +1,11 @@
-from arnelify_orm import ArnelifyORM
+from arnelify_orm import MySQL
+from arnelify_orm import MySQLQuery
 
 def main() -> int:
   
   res: list[dict] = []
-  db: ArnelifyORM = ArnelifyORM({
-    "ORM_DRIVER": "mysql",
+  db: MySQL = MySQL({
+    "ORM_MAX_CONNECTIONS": 10,
     "ORM_HOST": "mysql",
     "ORM_NAME": "test",
     "ORM_USER": "root",
@@ -12,10 +13,13 @@ def main() -> int:
     "ORM_PORT": 3306
   })
 
+  db.connect()
+  print("Connected.")
+
   db.dropTable("users")
   db.dropTable("posts")
 
-  def users(query: ArnelifyORM):
+  def users(query: MySQLQuery):
     query.column("id", "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY")
     query.column("email", "VARCHAR(255) UNIQUE", None)
     query.column("created_at", "DATETIME", "CURRENT_TIMESTAMP")
@@ -23,7 +27,7 @@ def main() -> int:
   
   db.createTable("users", users)
 
-  def posts(query: ArnelifyORM):
+  def posts(query: MySQLQuery):
     query.column("id", "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY")
     query.column("user_id", "BIGINT UNSIGNED", None)
     query.column("contents", "VARCHAR(2048)", None)
@@ -46,5 +50,8 @@ def main() -> int:
   db.table("users").update({ "email": "user@example.com" }).where("id", 1).exec()
   db.table("users").delete_().where("id", 1).limit(1)
   
+  db.close()
+  print("Closed.")
+
 if __name__ == "__main__":
   main()

@@ -8,11 +8,27 @@
 #include "json.h"
 #include "napi.h"
 
-#include "index.cpp"
+#include "index.h"
 
-ArnelifyORM* orm = nullptr;
+MySQL* mysql = nullptr;
 
-Napi::Value orm_create(const Napi::CallbackInfo& args) {
+Napi::Value orm_mysql_connect(const Napi::CallbackInfo& args) {
+  Napi::Env env = args.Env();
+
+  mysql->connect();
+
+  return env.Undefined();
+}
+
+Napi::Value orm_mysql_close(const Napi::CallbackInfo& args) {
+  Napi::Env env = args.Env();
+  
+  mysql->close();
+
+  return env.Undefined();
+}
+
+Napi::Value orm_mysql_create(const Napi::CallbackInfo& args) {
   Napi::Env env = args.Env();
   if (args.Length() < 1 || !args[0].IsString()) {
     Napi::TypeError::New(env,
@@ -34,10 +50,10 @@ Napi::Value orm_create(const Napi::CallbackInfo& args) {
     exit(1);
   }
 
-  const bool hasDriver =
-      json.isMember("ORM_DRIVER") && json["ORM_DRIVER"].isString();
-  if (!hasDriver) {
-    std::cout << "[Arnelify ORM]: C++ error: 'ORM_DRIVER' is missing."
+  const bool hasMaxConnections = json.isMember("ORM_MAX_CONNECTIONS") &&
+                                 json["ORM_MAX_CONNECTIONS"].isInt();
+  if (!hasMaxConnections) {
+    std::cout << "[Arnelify ORM]: C++ error: 'ORM_MAX_CONNECTIONS' is missing."
               << std::endl;
     exit(1);
   }
@@ -77,25 +93,25 @@ Napi::Value orm_create(const Napi::CallbackInfo& args) {
     exit(1);
   }
 
-  ArnelifyORMOpts opts(json["ORM_DRIVER"].asString(),
-                       json["ORM_HOST"].asString(), json["ORM_NAME"].asString(),
-                       json["ORM_USER"].asString(), json["ORM_PASS"].asString(),
-                       json["ORM_PORT"].asInt());
+  MySQLOpts opts(json["ORM_MAX_CONNECTIONS"].asInt(),
+                 json["ORM_HOST"].asString(), json["ORM_NAME"].asString(),
+                 json["ORM_USER"].asString(), json["ORM_PASS"].asString(),
+                 json["ORM_PORT"].asInt());
 
-  orm = new ArnelifyORM(opts);
+  mysql = new MySQL(opts);
 
   return env.Undefined();
 }
 
-Napi::Value orm_destroy(const Napi::CallbackInfo& args) {
+Napi::Value orm_mysql_destroy(const Napi::CallbackInfo& args) {
   Napi::Env env = args.Env();
 
-  delete orm;
-  orm = nullptr;
+  delete mysql;
+  mysql = nullptr;
   return env.Undefined();
 }
 
-Napi::Value orm_exec(const Napi::CallbackInfo& info) {
+Napi::Value orm_mysql_exec(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if (!info.Length() || !info[0].IsString()) {
     Napi::TypeError::New(env, "[Arnelify ORM]: C++ error: query is missing.")
@@ -129,8 +145,8 @@ Napi::Value orm_exec(const Napi::CallbackInfo& info) {
     bindings.emplace_back(value.asString());
   }
 
-  ArnelifyORMRes res = orm->exec(query, bindings);
-  Json::Value json = orm->toJson(res);
+  MySQLRes res = mysql->exec(query, bindings);
+  Json::Value json = mysql->toJson(res);
 
   Json::StreamWriterBuilder writer;
   writer["indentation"] = "";
@@ -140,16 +156,19 @@ Napi::Value orm_exec(const Napi::CallbackInfo& info) {
   return Napi::String::New(env, out);
 }
 
-Napi::Value orm_get_uuid(const Napi::CallbackInfo& info) {
+Napi::Value orm_mysql_get_uuid(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
-  return Napi::String::New(env, orm->getUuId());
+  return Napi::String::New(env, mysql->getUuId());
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-  exports.Set("orm_create", Napi::Function::New(env, orm_create));
-  exports.Set("orm_destroy", Napi::Function::New(env, orm_destroy));
-  exports.Set("orm_exec", Napi::Function::New(env, orm_exec));
-  exports.Set("orm_get_uuid", Napi::Function::New(env, orm_get_uuid));
+  exports.Set("orm_mysql_close", Napi::Function::New(env, orm_mysql_close));
+  exports.Set("orm_mysql_connect", Napi::Function::New(env, orm_mysql_connect));
+  exports.Set("orm_mysql_create", Napi::Function::New(env, orm_mysql_create));
+  exports.Set("orm_mysql_destroy", Napi::Function::New(env, orm_mysql_destroy));
+  exports.Set("orm_mysql_exec", Napi::Function::New(env, orm_mysql_exec));
+  exports.Set("orm_mysql_get_uuid",
+              Napi::Function::New(env, orm_mysql_get_uuid));
   return exports;
 }
 

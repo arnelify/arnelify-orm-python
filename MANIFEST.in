@@ -1,1 +1,1 @@
-recursive-include arnelify_orm/cpp *.cpp *.hpp
+recursive-include arnelify_orm/src *.cpp *.hpp *.h

@@ -1,58 +1,26 @@
-import cffi
-import json
-import os
+class MySQLQuery:
 
-class ArnelifyORM:
-  def __init__(self, opts: dict):
-    srcDir: str = os.walk(os.path.abspath('venv/lib64'))
-    libPaths: list[str] = []
-    for root, dirs, files in srcDir:
-      for file in files:
-        if file.startswith('arnelify-orm') and file.endswith('.so'):
-          libPaths.append(os.path.join(root, file))
+  def __init__(self):
 
-    self.ffi = cffi.FFI()
-    self.lib = self.ffi.dlopen(libPaths[0])
+    def callback(query: str, bindings: list) -> list[dict]:
+      res: list[dict] = []
+      print(query)
+      return res
 
-    required: list[str] = [
-      "ORM_DRIVER",
-      "ORM_HOST",
-      "ORM_NAME",
-      "ORM_USER",
-      "ORM_PASS",
-      "ORM_PORT"
-    ]
-
-    for key in required:
-      if key not in opts:
-        print(f"[ArnelifyORM FFI]: Python error: '{key}' is missing")
-        exit(1)
-
-    self.ffi.cdef("""
-      typedef const char* cOpts;
-      typedef const char* cQuery;
-      typedef const char* cBindings;
-      typedef const char* cPtr;
-
-      void orm_create(cOpts);
-      void orm_destroy();
-      const char* orm_exec(cQuery, cBindings);
-      void orm_free(cPtr);
-      const char* orm_get_uuid();
-    """)
-
-    self.opts: str = json.dumps(opts, separators=(',', ':'))
-    cOpts = self.ffi.new("char[]", self.opts.encode('utf-8'))
+    def getUuIdCallback() -> str:
+      return ''
 
     self.hasHaving: bool = False
     self.hasOn: bool = False
     self.hasWhere: bool = False
-    
+      
     self.bindings: list = []
     self.columns: list = []
     self.indexes: list = []
-    self.lib.orm_create(cOpts)
     self.query: str = ""
+
+    self.callback = callback
+    self.getUuIdCallback = getUuIdCallback
 
   def condition(self, bind: bool, column: str, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> None:
     if self.isOperator(arg2):
@@ -105,14 +73,7 @@ class ArnelifyORM:
     operators = ['=', '!=', '<=', '>=', '<', '>', 'IN', 'BETWEEN', 'LIKE', '<>']
     return operator_ in operators
 
-  def logger(self, message: str, isError: bool) -> None:
-    if isError:
-        print(f"[Arnelify ORM]: Python error: {message}")
-        return
-    
-    print(f"[Arnelify ORM]: {message}")
-
-  def alertTable(self, tableName: str, condition: callable) -> None:
+  def alterTable(self, tableName: str, condition: callable) -> None:
     self.query = f"ALTER TABLE {tableName} "
     condition(self)
 
@@ -182,14 +143,11 @@ class ArnelifyORM:
     self.query += ')'
     self.exec()
 
-  def delete_(self) -> 'ArnelifyORM':
+  def delete_(self) -> 'MySQLQuery':
     self.query = f"DELETE FROM {self.tableName}"
     return self
 
-  def destroy(self) -> None:
-    self.lib.orm_destroy()
-
-  def distinct(self, args: list[str] = []) -> 'ArnelifyORM':
+  def distinct(self, args: list[str] = []) -> 'MySQLQuery':
     if not args:
         self.query = f"SELECT DISTINCT * FROM {self.tableName}"
         return self
@@ -226,34 +184,12 @@ class ArnelifyORM:
     self.exec('SET foreign_key_checks = 1;')
 
   def exec(self, query: str | None = None, bindings: list[str] = []) -> list[dict]:
-    res: list[dict] = {}
-    if query is None:
-      serialized: str = json.dumps(self.bindings, separators=(',', ':'))
-      cQuery = self.ffi.new("char[]", self.query.encode('utf-8'))
-      cBindings = self.ffi.new("char[]", serialized.encode('utf-8'))
-      cRes = self.lib.orm_exec(cQuery, cBindings)
-      raw = self.ffi.string(cRes).decode('utf-8')
-
-      try:
-        res = json.loads(raw)
-      except Exception:
-        self.logger('Res must be a valid JSON.', True)
-
-      self.lib.orm_free(cRes)
+    res: list[dict] = []
+    if query:
+      res = self.callback(query, bindings)
 
     else:
-      serialized: str = json.dumps(bindings, separators=(',', ':'))
-      cQuery = self.ffi.new("char[]", query.encode('utf-8'))
-      cBindings = self.ffi.new("char[]", serialized.encode('utf-8'))
-      cRes = self.lib.orm_exec(cQuery, cBindings)
-      raw = self.ffi.string(cRes).decode('utf-8')
-
-      try:
-        res = json.loads(raw)
-      except Exception:
-        self.logger('Res must be a valid JSON.', True)
-
-      self.lib.orm_free(cRes)
+      res = self.callback(self.query, self.bindings)
 
     self.hasHaving = False
     self.hasOn = False
@@ -268,12 +204,9 @@ class ArnelifyORM:
     return res
 
   def getUuId(self) -> str:
-    cUuId = self.lib.orm_get_uuid()
-    uuid: str = self.ffi.string(cUuId).decode('utf-8')
-    self.lib.orm_free(cUuId)
-    return uuid
+    return self.getUuIdCallback()
   
-  def groupBy(self, args: list[str] = []) -> 'ArnelifyORM':
+  def groupBy(self, args: list[str] = []) -> 'MySQLQuery':
     self.query += " GROUP BY "
     for i, arg in enumerate(args):
         if i > 0:
@@ -282,7 +215,7 @@ class ArnelifyORM:
 
     return self
 
-  def having(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
+  def having(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasHaving:
         if self.query.endswith(')'):
@@ -352,7 +285,7 @@ class ArnelifyORM:
     query += ')'
     self.bindings.append(query)
 
-  def join(self, table_name: str) -> 'ArnelifyORM':
+  def join(self, table_name: str) -> 'MySQLQuery':
     self.query += f" JOIN {table_name}"
     return self
 
@@ -363,11 +296,15 @@ class ArnelifyORM:
       self.query += f" LIMIT {limit_}"
     return self.exec()
 
-  def leftJoin(self, table_name: str) -> 'ArnelifyORM':
+  def leftJoin(self, table_name: str) -> 'MySQLQuery':
     self.query += f" LEFT JOIN {table_name}"
     return self
 
-  def on(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
+  def offset(self, offset: int) -> 'MySQLQuery':
+    self.query += f" OFFSET {offset}"
+    return self
+  
+  def on(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasOn:
         if self.query.endswith(')'):
@@ -391,15 +328,14 @@ class ArnelifyORM:
     self.condition(False, arg1, arg2, arg3)
     return self
 
-  def offset(self, offset: int) -> 'ArnelifyORM':
-    self.query += f" OFFSET {offset}"
-    return self
+  def onQuery(self, callback: callable) -> None:
+    self.callback = callback
 
-  def orderBy(self, column: str, arg2: str) -> 'ArnelifyORM':
+  def orderBy(self, column: str, arg2: str) -> 'MySQLQuery':
     self.query += f" ORDER BY {column} {arg2}"
     return self
 
-  def orHaving(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
+  def orHaving(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasHaving:
         if self.query.endswith(')'):
@@ -423,7 +359,7 @@ class ArnelifyORM:
     self.condition(True, arg1, arg2, arg3)
     return self
 
-  def orOn(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
+  def orOn(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasOn:
         if self.query.endswith(')'):
@@ -447,7 +383,7 @@ class ArnelifyORM:
     self.condition(False, arg1, arg2, arg3)
     return self
 
-  def orWhere(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'ArnelifyORM':
+  def orWhere(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasWhere:
         if self.query.endswith(')'):
@@ -483,11 +419,11 @@ class ArnelifyORM:
 
     self.indexes.append(query)
 
-  def rightJoin(self, table_name: str) -> 'ArnelifyORM':
+  def rightJoin(self, table_name: str) -> 'MySQLQuery':
     self.query += f" RIGHT JOIN {table_name}"
     return self
 
-  def select(self, args: list[str] = []) -> 'ArnelifyORM':
+  def select(self, args: list[str] = []) -> 'MySQLQuery':
     if not args:
         self.query = f"SELECT * FROM {self.tableName}"
         return self
@@ -501,14 +437,14 @@ class ArnelifyORM:
     self.query += f" FROM {self.tableName}"
     return self
 
-  def table(self, table_name: str) -> 'ArnelifyORM':
+  def setGetUuIdCallback(self, callback: callable) -> None:
+    self.getUuIdCallback = callback
+
+  def table(self, table_name: str) -> 'MySQLQuery':
     self.tableName = table_name
     return self
 
-  def toJson(self, res: dict[str, str]) -> str:
-    return json.dumps(res, separators=(',', ':'))
-
-  def update(self, args: dict[str, any]) -> 'ArnelifyORM':
+  def update(self, args: dict[str, any]) -> 'MySQLQuery':
     self.query = f"UPDATE {self.tableName} SET "
     
     first: bool = True
@@ -529,7 +465,7 @@ class ArnelifyORM:
 
     return self
 
-  def where(self, arg1, arg2: str | int | None = None, arg3: str | int | None = None) -> 'ArnelifyORM':
+  def where(self, arg1, arg2: str | int | None = None, arg3: str | int | None = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasWhere:
         if self.query.endswith(')'):

@@ -1,13 +1,25 @@
 #ifndef ARNELIFY_ORM_FFI_CPP
 #define ARNELIFY_ORM_FFI_CPP
 
-#include "index.cpp"
+#include "index.h"
 
 extern "C" {
 
-ArnelifyORM* orm = nullptr;
+MySQL* mysql = nullptr;
 
-void orm_create(const char* cOpts) {
+void orm_free(const char* cPtr) {
+  if (cPtr) delete[] cPtr;
+}
+
+void orm_mysql_close() {
+  mysql->close();
+}
+
+void orm_mysql_connect() {
+  mysql->connect();
+}
+
+void orm_mysql_create(const char* cOpts) {
   Json::Value json;
   Json::CharReaderBuilder reader;
   std::string errors;
@@ -18,10 +30,10 @@ void orm_create(const char* cOpts) {
     exit(1);
   }
 
-  const bool hasDriver =
-      json.isMember("ORM_DRIVER") && json["ORM_DRIVER"].isString();
-  if (!hasDriver) {
-    std::cout << "[ArnelifyORM FFI]: C error: 'ORM_DRIVER' is missing."
+  const bool hasMaxConnections = json.isMember("ORM_MAX_CONNECTIONS") &&
+                                 json["ORM_MAX_CONNECTIONS"].isInt();
+  if (!hasMaxConnections) {
+    std::cout << "[ArnelifyORM FFI]: C error: 'ORM_MAX_CONNECTIONS' is missing."
               << std::endl;
     exit(1);
   }
@@ -61,20 +73,20 @@ void orm_create(const char* cOpts) {
     exit(1);
   }
 
-  ArnelifyORMOpts opts(json["ORM_DRIVER"].asString(),
-                       json["ORM_HOST"].asString(), json["ORM_NAME"].asString(),
-                       json["ORM_USER"].asString(), json["ORM_PASS"].asString(),
-                       json["ORM_PORT"].asInt());
+  MySQLOpts opts(json["ORM_MAX_CONNECTIONS"].asInt(),
+                 json["ORM_HOST"].asString(), json["ORM_NAME"].asString(),
+                 json["ORM_USER"].asString(), json["ORM_PASS"].asString(),
+                 json["ORM_PORT"].asInt());
 
-  orm = new ArnelifyORM(opts);
+  mysql = new MySQL(opts);
 }
 
-void orm_destroy() {
-  delete orm;
-  orm = nullptr;
+void orm_mysql_destroy() {
+  delete mysql;
+  mysql = nullptr;
 }
 
-const char* orm_exec(const char* cQuery, const char* cSerialized) {
+const char* orm_mysql_exec(const char* cQuery, const char* cSerialized) {
   Json::Value cBindings;
   Json::CharReaderBuilder reader;
   std::string errors;
@@ -91,8 +103,8 @@ const char* orm_exec(const char* cQuery, const char* cSerialized) {
     bindings.emplace_back(value.asString());
   }
 
-  ArnelifyORMRes res = orm->exec(cQuery, bindings);
-  Json::Value json = orm->toJson(res);
+  MySQLRes res = mysql->exec(cQuery, bindings);
+  Json::Value json = mysql->toJson(res);
 
   Json::StreamWriterBuilder writer;
   writer["indentation"] = "";
@@ -104,12 +116,8 @@ const char* orm_exec(const char* cQuery, const char* cSerialized) {
   return cRes;
 }
 
-void orm_free(const char* cPtr) {
-  if (cPtr) delete[] cPtr;
-}
-
-const char* orm_get_uuid() {
-  const std::string uuid = orm->getUuId();
+const char* orm_mysql_get_uuid() {
+  const std::string uuid = mysql->getUuId();
   char* cUuId = new char[uuid.length() + 1];
   std::strcpy(cUuId, uuid.c_str());
   return cUuId;

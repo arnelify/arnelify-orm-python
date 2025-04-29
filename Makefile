@@ -6,11 +6,11 @@ ENGINE = g++
 ENGINE_FLAGS = -std=c++2b
 
 # PATH
-PATH_BIN = $(CURDIR)/tests/bin/index.bin
+PATH_BIN = $(CURDIR)/tests/bin/index
 PATH_SRC = $(CURDIR)/tests/index.py
 
 # INC
-INC_CPP = -I $(CURDIR)/src/cpp
+INC_CPP = -I $(CURDIR)/src/src
 INC_INCLUDE = -L /usr/include
 INC_JSONCPP = -I /usr/include/jsoncpp/json
 INC = ${INC_CPP} ${INC_INCLUDE} ${INC_JSONCPP}
