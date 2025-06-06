@@ -594,7 +594,8 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasWhere) {
-      const bool hasCondition = this->query.ends_with("?");
+      const bool hasCondition =
+          this->query.ends_with("?") || this->query.ends_with("IS NULL");
       if (hasCondition) this->query += " OR ";
     } else {
       this->query += " WHERE ";
@@ -719,7 +720,8 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasWhere) {
-      const bool hasCondition = this->query.ends_with("?");
+      const bool hasCondition =
+          this->query.ends_with("?") || this->query.ends_with("IS NULL");
       if (hasCondition) this->query += " AND ";
     } else {
       this->query += " WHERE ";

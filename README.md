@@ -1,6 +1,6 @@
 <img src="https://static.wikia.nocookie.net/arnelify/images/c/c8/Arnelify-logo-2024.png/revision/latest?cb=20240701012515" style="width:336px;" alt="Arnelify Logo" />
 
-![Arnelify ORM for Python](https://img.shields.io/badge/Arnelify%20ORM%20for%20Python-0.7.1-yellow) ![C++](https://img.shields.io/badge/C++-2b-red) ![G++](https://img.shields.io/badge/G++-14.2.0-blue) ![Python](https://img.shields.io/badge/Python-3.11.2-blue) ![Nuitka](https://img.shields.io/badge/Nuitka-2.6.4-blue)
+![Arnelify ORM for Python](https://img.shields.io/badge/Arnelify%20ORM%20for%20Python-0.7.2-yellow) ![C++](https://img.shields.io/badge/C++-2b-red) ![G++](https://img.shields.io/badge/G++-14.2.0-blue) ![Python](https://img.shields.io/badge/Python-3.11.2-blue) ![Nuitka](https://img.shields.io/badge/Nuitka-2.6.4-blue)
 
 ## 🚀 About
 **Arnelify® ORM for Python** - is a minimalistic dynamic library which is an ORM written in C and C++.
@@ -55,7 +55,7 @@ This software is licensed under the <a href="https://github.com/arnelify/arnelif
 Join us to help improve this software, fix bugs or implement new functionality. Active participation will help keep the software up-to-date, reliable, and aligned with the needs of its users.
 
 ## ⭐ Release Notes
-Version 0.7.1 - Minimalistic dynamic library
+Version 0.7.2 - Minimalistic dynamic library
 
 We are excited to introduce the Arnelify ORM dynamic library for Python! Please note that this version is raw and still in active development.
 

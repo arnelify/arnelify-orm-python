@@ -403,7 +403,7 @@ class MySQLQuery:
       return self
 
     if self.hasWhere:
-      if self.query.endswith('?'):
+      if self.query.endswith('?') or self.query.endswith('IS NULL'):
         self.query += ' OR '
     else:
       self.query += ' WHERE '
@@ -485,7 +485,7 @@ class MySQLQuery:
       return self
 
     if self.hasWhere:
-      if self.query.endswith('?'):
+      if self.query.endswith('?') or self.query.endswith('IS NULL'):
         self.query += ' AND '
     else:
       self.query += ' WHERE '
