@@ -441,6 +441,7 @@ class MySQLQuery {
   }
 
   MySQLQuery* join(const std::string& tableName) {
+    this->hasOn = false;
     this->query += " JOIN " + tableName;
     return this;
   }
@@ -457,6 +458,7 @@ class MySQLQuery {
   }
 
   MySQLQuery* leftJoin(const std::string& tableName) {
+    this->hasOn = false;
     this->query += " LEFT JOIN " + tableName;
     return this;
   }
@@ -628,6 +630,7 @@ class MySQLQuery {
   }
 
   MySQLQuery* rightJoin(const std::string& tableName) {
+    this->hasOn = false;
     this->query += " RIGHT JOIN " + tableName;
     return this;
   }

@@ -291,6 +291,7 @@ class MySQLQuery:
     self.bindings.append(query)
 
   def join(self, table_name: str) -> 'MySQLQuery':
+    self.hasOn = False
     self.query += f" JOIN {table_name}"
     return self
 
@@ -302,6 +303,7 @@ class MySQLQuery:
     return self.exec()
 
   def leftJoin(self, table_name: str) -> 'MySQLQuery':
+    self.hasOn = False
     self.query += f" LEFT JOIN {table_name}"
     return self
 
@@ -425,6 +427,7 @@ class MySQLQuery:
     self.indexes.append(query)
 
   def rightJoin(self, table_name: str) -> 'MySQLQuery':
+    self.hasOn = False
     self.query += f" RIGHT JOIN {table_name}"
     return self
 
