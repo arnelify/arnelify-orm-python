@@ -73,6 +73,22 @@ class MySQLQuery:
     operators = ['=', '!=', '<=', '>=', '<', '>', 'IN', 'BETWEEN', 'LIKE', '<>']
     return operator_ in operators
 
+  def hasGroupCondition(self) -> bool:
+    return self.query.endswith(")")
+
+  def hasCondition(self) -> bool:
+    tokens = self.query.split()
+
+    if len(tokens) < 3:
+      return False
+
+    op  = tokens[-2]
+    rhs  = tokens[-1]
+    if rhs == 'IS NULL':
+      return True
+    
+    return self.isOperator(op)
+    
   def alterTable(self, tableName: str, condition: callable) -> None:
     self.query = f"ALTER TABLE {tableName} "
     condition(self)
@@ -223,7 +239,7 @@ class MySQLQuery:
   def having(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasHaving:
-        if self.query.endswith(')'):
+        if self.hasGroupCondition():
           self.query += ' AND '
       else:
         self.query += ' HAVING '
@@ -235,7 +251,7 @@ class MySQLQuery:
       return self
 
     if self.hasHaving:
-      if self.query.endswith('?'):
+      if self.hasCondition():
         self.query += ' AND '
     else:
       self.query += ' HAVING '
@@ -314,7 +330,7 @@ class MySQLQuery:
   def on(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasOn:
-        if self.query.endswith(')'):
+        if self.hasGroupCondition():
           self.query += ' AND '
       else:
         self.query += ' ON '
@@ -326,7 +342,7 @@ class MySQLQuery:
       return self
 
     if self.hasOn:
-        if self.query.endswith('?'):
+        if self.hasCondition():
             self.query += ' AND '
     else:
         self.query += ' ON '
@@ -345,7 +361,7 @@ class MySQLQuery:
   def orHaving(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasHaving:
-        if self.query.endswith(')'):
+        if self.hasGroupCondition():
           self.query += ' OR '
       else:
         self.query += ' HAVING '
@@ -357,7 +373,7 @@ class MySQLQuery:
       return self
 
     if self.hasHaving:
-      if self.query.endswith('?'):
+      if self.hasCondition():
         self.query += ' OR '
     else:
       self.query += ' HAVING '
@@ -369,7 +385,7 @@ class MySQLQuery:
   def orOn(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasOn:
-        if self.query.endswith(')'):
+        if self.hasGroupCondition():
           self.query += ' OR '
       else:
         self.query += ' ON '
@@ -381,7 +397,7 @@ class MySQLQuery:
       return self
 
     if self.hasOn:
-      if self.query.endswith('?'):
+      if self.hasCondition():
         self.query += ' OR '
     else:
       self.query += ' ON '
@@ -393,7 +409,7 @@ class MySQLQuery:
   def orWhere(self, arg1, arg2: None | int | float | str = None, arg3: None | int | float | str = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasWhere:
-        if self.query.endswith(')'):
+        if self.hasGroupCondition():
           self.query += ' OR '
       else:
         self.query += ' WHERE '
@@ -405,7 +421,7 @@ class MySQLQuery:
       return self
 
     if self.hasWhere:
-      if self.query.endswith('?') or self.query.endswith('IS NULL'):
+      if self.hasCondition():
         self.query += ' OR '
     else:
       self.query += ' WHERE '
@@ -476,7 +492,7 @@ class MySQLQuery:
   def where(self, arg1, arg2: str | int | None = None, arg3: str | int | None = None) -> 'MySQLQuery':
     if callable(arg1):
       if self.hasWhere:
-        if self.query.endswith(')'):
+        if self.hasGroupCondition():
           self.query += ' AND '
       else:
         self.query += ' WHERE '
@@ -488,7 +504,7 @@ class MySQLQuery:
       return self
 
     if self.hasWhere:
-      if self.query.endswith('?') or self.query.endswith('IS NULL'):
+      if self.hasCondition():
         self.query += ' AND '
     else:
       self.query += ' WHERE '

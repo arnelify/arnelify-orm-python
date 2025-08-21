@@ -1,6 +1,6 @@
 <img src="https://static.wikia.nocookie.net/arnelify/images/c/c8/Arnelify-logo-2024.png/revision/latest?cb=20240701012515" style="width:336px;" alt="Arnelify Logo" />
 
-![Arnelify ORM for Python](https://img.shields.io/badge/Arnelify%20ORM%20for%20Python-0.7.3-yellow) ![C++](https://img.shields.io/badge/C++-2b-red) ![G++](https://img.shields.io/badge/G++-14.2.0-blue) ![Python](https://img.shields.io/badge/Python-3.11.2-blue) ![Nuitka](https://img.shields.io/badge/Nuitka-2.6.4-blue)
+![Arnelify ORM for Python](https://img.shields.io/badge/Arnelify%20ORM%20for%20Python-0.7.4-yellow) ![C++](https://img.shields.io/badge/C++-2b-red) ![G++](https://img.shields.io/badge/G++-14.2.0-blue) ![Python](https://img.shields.io/badge/Python-3.11.2-blue) ![Nuitka](https://img.shields.io/badge/Nuitka-2.6.4-blue)
 
 ## 🚀 About
 **Arnelify® ORM for Python** - is a minimalistic dynamic library which is an ORM written in C and C++.

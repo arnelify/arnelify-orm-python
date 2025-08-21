@@ -8,7 +8,6 @@
 #include "../index.h"
 
 int main(int argc, char* argv[]) {
-
   MySQLOpts opts(10, "mysql", "test", "root", "pass", 3306);
   MySQL* db = new MySQL(opts);
   MySQLRes res;
@@ -25,14 +24,14 @@ int main(int argc, char* argv[]) {
   db->dropTable("posts");
   db->foreignKeyChecks(true);
 
-  db->createTable("users", [](MySQLQuery* query){
+  db->createTable("users", [](MySQLQuery* query) {
     query->column("id", "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY");
     query->column("email", "VARCHAR(255) UNIQUE", nullptr);
     query->column("created_at", "DATETIME", "CURRENT_TIMESTAMP");
     query->column("updated_at", "DATETIME", nullptr);
   });
 
-  db->createTable("posts", [](MySQLQuery* query){
+  db->createTable("posts", [](MySQLQuery* query) {
     query->column("id", "BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY");
     query->column("user_id", "BIGINT UNSIGNED", nullptr);
     query->column("contents", "VARCHAR(2048)", nullptr);
@@ -42,12 +41,13 @@ int main(int argc, char* argv[]) {
     query->index("INDEX", {"user_id"});
     query->reference("user_id", "users", "id", {"ON DELETE CASCADE"});
   });
-  
+
   res = db->table("users")
     ->insert({{"email", "email@example.com"}});
 
   Json::Value insert = db->toJson(res);
-  std::cout << "last inserted id: " << Json::writeString(writer, insert) << std::endl;
+  std::cout << "last inserted id: " << Json::writeString(writer, insert)
+            << std::endl;
 
   res = db->table("users")
     ->select({"id", "email"})
@@ -55,7 +55,8 @@ int main(int argc, char* argv[]) {
     ->limit(1);
 
   Json::Value select = db->toJson(res);
-  std::cout << "inserted row: " << Json::writeString(writer, select) << std::endl;
+  std::cout << "inserted row: " << Json::writeString(writer, select)
+            << std::endl;
 
   db->table("users")
     ->update({{"email", "user@example.com"}})

@@ -58,6 +58,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3) {
     if (this->isOperator(arg2)) {
       const std::string operator_ = std::get<std::string>(arg2);
+
       if (std::holds_alternative<std::nullptr_t>(arg3)) {
         this->query += column + " IS NULL";
         return;
@@ -84,6 +85,7 @@ class MySQLQuery {
         }
 
         this->query += column + " " + operator_ + " " + value;
+        return;
       }
 
       const std::string value = std::get<std::string>(arg3);
@@ -94,6 +96,7 @@ class MySQLQuery {
       }
 
       this->query += column + " " + operator_ + " " + value;
+      return;
     }
 
     if (std::holds_alternative<std::nullptr_t>(arg2)) {
@@ -110,6 +113,7 @@ class MySQLQuery {
       }
 
       this->query += column + " = " + value;
+      return;
     }
 
     if (std::holds_alternative<double>(arg2)) {
@@ -121,15 +125,38 @@ class MySQLQuery {
       }
 
       this->query += column + " = " + value;
+      return;
     }
 
     const std::string value = std::get<std::string>(arg2);
     if (bind) {
       this->query += column + " = ?";
       this->bindings.emplace_back(value);
+      return;
     }
 
     this->query += column + " = " + value;
+  }
+
+  const bool hasGroupCondition() {
+    return this->query.ends_with(")");
+  }
+
+  const bool hasCondition() {
+    std::vector<std::string> tokens;
+    std::istringstream stream(this->query);
+    std::string token;
+    while (stream >> token) {
+        tokens.push_back(token);
+    }
+
+    if (tokens.size() < 3) return false;
+
+    const std::string& lhs = tokens[tokens.size() - 3];
+    const std::string& op  = tokens[tokens.size() - 2];
+    const std::string& rhs = tokens[tokens.size() - 1];
+
+    return isOperator(op);
   }
 
  public:
@@ -343,8 +370,7 @@ class MySQLQuery {
 
   MySQLQuery* having(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasHaving) {
-      const bool hasCondition = this->query.ends_with(")");
-      if (hasCondition) this->query += " AND ";
+      if (this->hasGroupCondition()) this->query += " AND ";
     } else {
       this->query += " HAVING ";
       this->hasHaving = true;
@@ -362,8 +388,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasHaving) {
-      const bool hasCondition = this->query.ends_with("?");
-      if (hasCondition) this->query += " AND ";
+      if (this->hasCondition()) this->query += " AND ";
     } else {
       this->query += " HAVING ";
       this->hasHaving = true;
@@ -470,8 +495,7 @@ class MySQLQuery {
 
   MySQLQuery* on(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasOn) {
-      const bool hasCondition = this->query.ends_with(")");
-      if (hasCondition) this->query += " AND ";
+      if (this->hasGroupCondition()) this->query += " AND ";
     } else {
       this->query += " ON ";
       this->hasOn = true;
@@ -489,8 +513,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasOn) {
-      const bool hasCondition = this->query.ends_with("?");
-      if (hasCondition) this->query += " AND ";
+      if (this->hasCondition()) this->query += " AND ";
     } else {
       this->query += " ON ";
       this->hasOn = true;
@@ -513,8 +536,7 @@ class MySQLQuery {
 
   MySQLQuery* orHaving(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasHaving) {
-      const bool hasCondition = this->query.ends_with(")");
-      if (hasCondition) this->query += " OR ";
+      if (this->hasGroupCondition()) this->query += " OR ";
     } else {
       this->query += " HAVING ";
       this->hasHaving = true;
@@ -532,8 +554,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasHaving) {
-      const bool hasCondition = this->query.ends_with("?");
-      if (hasCondition) this->query += " OR ";
+      if (this->hasCondition()) this->query += " OR ";
     } else {
       this->query += " HAVING ";
       this->hasHaving = true;
@@ -545,8 +566,7 @@ class MySQLQuery {
 
   MySQLQuery* orOn(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasOn) {
-      const bool hasCondition = this->query.ends_with(")");
-      if (hasCondition) this->query += " OR ";
+      if (this->hasGroupCondition()) this->query += " OR ";
     } else {
       this->query += " ON ";
       this->hasOn = true;
@@ -564,8 +584,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasOn) {
-      const bool hasCondition = this->query.ends_with("?");
-      if (hasCondition) this->query += " OR ";
+      if (this->hasCondition()) this->query += " OR ";
     } else {
       this->query += " ON ";
       this->hasOn = true;
@@ -577,8 +596,7 @@ class MySQLQuery {
 
   MySQLQuery* orWhere(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasWhere) {
-      const bool hasCondition = this->query.ends_with(")");
-      if (hasCondition) this->query += " OR ";
+      if (this->hasGroupCondition()) this->query += " OR ";
     } else {
       this->query += " WHERE ";
       this->hasWhere = true;
@@ -596,9 +614,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasWhere) {
-      const bool hasCondition =
-          this->query.ends_with("?") || this->query.ends_with("IS NULL");
-      if (hasCondition) this->query += " OR ";
+      if (this->hasCondition()) this->query += " OR ";
     } else {
       this->query += " WHERE ";
       this->hasWhere = true;
@@ -704,8 +720,7 @@ class MySQLQuery {
 
   MySQLQuery* where(const std::function<void(MySQLQuery*)>& condition) {
     if (this->hasWhere) {
-      const bool hasCondition = this->query.ends_with(")");
-      if (hasCondition) this->query += " AND ";
+      if (this->hasGroupCondition()) this->query += " AND ";
     } else {
       this->query += " WHERE ";
       this->hasWhere = true;
@@ -723,9 +738,7 @@ class MySQLQuery {
       const std::variant<std::nullptr_t, int, double, std::string>& arg3 =
           nullptr) {
     if (this->hasWhere) {
-      const bool hasCondition =
-          this->query.ends_with("?") || this->query.ends_with("IS NULL");
-      if (hasCondition) this->query += " AND ";
+      if (this->hasCondition()) this->query += " AND ";
     } else {
       this->query += " WHERE ";
       this->hasWhere = true;
