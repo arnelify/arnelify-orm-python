@@ -55,7 +55,7 @@ This software is licensed under the <a href="https://github.com/arnelify/arnelif
 Join us to help improve this software, fix bugs or implement new functionality. Active participation will help keep the software up-to-date, reliable, and aligned with the needs of its users.
 
 ## ⭐ Release Notes
-Version 0.7.3 - Minimalistic dynamic library
+Version 0.7.4 - Minimalistic dynamic library
 
 We are excited to introduce the Arnelify ORM dynamic library for Python! Please note that this version is raw and still in active development.
 
