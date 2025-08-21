@@ -11,7 +11,7 @@ ffi = Extension(
 
 setup(
   name="arnelify_orm",
-  version="0.7.4",
+  version="0.7.5",
   author="Arnelify",
   description="Minimalistic dynamic library which is an ORM written in C and C++.",
   url='https://github.com/arnelify/arnelify-orm-python',

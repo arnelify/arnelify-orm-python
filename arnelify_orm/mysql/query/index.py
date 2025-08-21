@@ -77,16 +77,16 @@ class MySQLQuery:
     return self.query.endswith(")")
 
   def hasCondition(self) -> bool:
+    isNull: bool = self.query.endswith('IS NULL')
+    if isNull:
+      return True
+    
     tokens = self.query.split()
 
     if len(tokens) < 3:
       return False
 
     op  = tokens[-2]
-    rhs  = tokens[-1]
-    if rhs == 'IS NULL':
-      return True
-    
     return self.isOperator(op)
     
   def alterTable(self, tableName: str, condition: callable) -> None:
